@@ -2,7 +2,7 @@
 {
     internal class SpotterKeystrokeHandler
     {
-        DataManager dataManager = DataManager.Instance;
+        DisplayManager dataManager = DisplayManager.Instance;
         ArtilleryProfiles artyProfiles = ArtilleryProfiles.Instance;
         private bool m_IsActive = false;
         private bool m_SetBindingInProgress = false;
@@ -182,21 +182,21 @@
         //    //////// Distance ////////
         //    if (args.Key == Key.Up)
         //    {
-        //        dataManager.LatestDist += distIncrement;
+        //        displayManager.LatestDist += distIncrement;
         //    }
         //    else if (args.Key == Key.Down)
         //    {
-        //        dataManager.LatestDist -= distIncrement;
+        //        displayManager.LatestDist -= distIncrement;
         //    }
         //
         //    //////// Azimuth ////////
         //    else if (args.Key == Key.Right)
         //    {
-        //        dataManager.LatestAz += azIncrement;
+        //        displayManager.LatestAz += azIncrement;
         //    }
         //    else if (args.Key == Key.Left)
         //    {
-        //        dataManager.LatestAz -= azIncrement;
+        //        displayManager.LatestAz -= azIncrement;
         //    }
         //
         //    //////// Send New Coords ////////
@@ -204,7 +204,7 @@
         //    {
         //        if (rightCtrlHeldDown)
         //        {
-        //            dataManager.SendCoords();
+        //            displayManager.SendCoords();
         //        }
         //    }
 

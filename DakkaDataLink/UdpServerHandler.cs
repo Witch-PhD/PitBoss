@@ -1,19 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Sockets;
-using System.Net;
-using System.Text;
-using System.Threading.Tasks;
-using Comms_Core;
+﻿using Comms_Core;
 using Google.Protobuf;
 using Grpc.Core;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Interop;
 
 namespace DakkaDataLink
 {
     internal class UdpServerHandler
     {
-        private DataManager dataManager = DataManager.Instance;
+        private DisplayManager displayManager = DisplayManager.Instance;
         public UdpClient? udpClient;// = new UdpClient(DdlConstants.SERVER_PORT);
         private Thread? m_udpReceiveThread;
 
@@ -21,11 +22,12 @@ namespace DakkaDataLink
         private CancellationTokenSource? receiveTaskCancelSource;
         private System.Timers.Timer sendStatusTimer = new System.Timers.Timer();
 
-        private Dictionary<IPEndPoint, UdpHandler.RemoteUserEntry> m_RemoteUserEntries = new Dictionary<IPEndPoint, UdpHandler.RemoteUserEntry>();
+        //private Dictionary<IPEndPoint, UdpHandler.RemoteUserEntry> m_RemoteUserEntries = new Dictionary<IPEndPoint, UdpHandler.RemoteUserEntry>();
+        private Dictionary<string, ServerSession?> m_SessionIdMap = new Dictionary<string, ServerSession?>();
         private static UdpServerHandler? m_Instance;
 
-        private int latestCoordsMsgIdSent = 0;
-        private int latestCoordsMsgIdRecvd = 0;
+        //private int latestCoordsMsgIdSent = 0;
+        //private int latestCoordsMsgIdRecvd = 0;
 
         public static UdpServerHandler Instance
         {
@@ -49,7 +51,7 @@ namespace DakkaDataLink
 
         private void sendStatusTimerElapsed(Object source, System.Timers.ElapsedEventArgs e)
         {
-            SendServerReport();
+            SendServerReports();
         }
 
         public void Start()
@@ -59,9 +61,10 @@ namespace DakkaDataLink
                 //IPAddress[] addresses =  Dns.GetHostAddresses("vitchdebitch.hopto.org");
                 //Console.WriteLine($"UdpServerHandler starting...");
                 GlobalLogger.Log($"UdpServerHandler starting...");
+                m_SessionIdMap[displayManager.userOptions.LastSessionId] = new ServerSession(displayManager.userOptions.LastSessionId, displayManager.userOptions.LastSessionPassword);
                 udpClient = new UdpClient(DdlConstants.SERVER_PORT);
                 receiveTaskCancelSource = new CancellationTokenSource();
-                dataManager.UdpHandlerActive = true;
+                displayManager.UdpHandlerActive = true;
                 m_udpReceiveThread = new Thread(receivingTask);
                 m_udpReceiveThread.Name = "UdpReceiveThread";
                 m_udpReceiveThread.IsBackground = true;
@@ -94,13 +97,14 @@ namespace DakkaDataLink
                     // TODO: Report error. Retry or kill.
                 }
             }
-            dataManager.UdpHandlerActive = false; // TODO: Move this somewhere else.
+            displayManager.UdpHandlerActive = false; // TODO: Move this somewhere else.
             m_udpReceiveThread = null; // TODO: move this up a block or two?
             receiveTaskCancelSource = null;
             udpClient?.Client?.Close();
             udpClient?.Close();
-            latestCoordsMsgIdSent = 0;
-            latestCoordsMsgIdRecvd = 0;
+            m_SessionIdMap.Clear();
+            //latestCoordsMsgIdSent = 0;
+            //latestCoordsMsgIdRecvd = 0;
         }
 
         private async void receivingTask()
@@ -118,16 +122,7 @@ namespace DakkaDataLink
                     UdpReceiveResult result = await udpClient.ReceiveAsync(cancelToken);
                     remoteEndpoint = result.RemoteEndPoint;
                     ArtyMsg theMsg = ArtyMsg.Parser.ParseFrom(result.Buffer);
-                    if (!m_RemoteUserEntries.Keys.Contains(remoteEndpoint))
-                    {
-                        m_RemoteUserEntries[remoteEndpoint] = new UdpHandler.RemoteUserEntry(remoteEndpoint, theMsg.Callsign);
-                        //dataManager.ConnectedUsersCallsigns.Add(theMsg.Callsign);
-
-                        //Console.WriteLine($"UdpServerHandler {m_RemoteUserEntries[remoteEndpoint].CallSign} ({remoteEndpoint}) is now an active user.");
-                        GlobalLogger.Log($"UdpServerHandler {m_RemoteUserEntries[remoteEndpoint].CallSign} ({remoteEndpoint}) is now an active user. {m_RemoteUserEntries.Count} Users active.");
-
-                    }
-                    // TODO: Update endpoint's timeout timer.
+                    
                     processMsg(theMsg, remoteEndpoint);
                 }
                 catch (InvalidProtocolBufferException ex)
@@ -147,37 +142,87 @@ namespace DakkaDataLink
 
         private void processMsg(ArtyMsg theMsg, IPEndPoint remoteEndPoint)
         {
-            m_RemoteUserEntries[remoteEndPoint].Update(theMsg);
+            ServerSession? theSession;
+            if (!m_SessionIdMap.ContainsKey(theMsg.SessionId))
+            {
+                m_SessionIdMap[theMsg.SessionId] = new ServerSession(theMsg.SessionId, theMsg.ClientReport.SessionPassword);
+            }
+            theSession = m_SessionIdMap[theMsg.SessionId];
+            //m_RemoteUserEntries[remoteEndPoint].Update(theMsg);
             if (theMsg.Coords != null)
             {
-                SendCoordsAck(theMsg.Coords.MsgId, remoteEndPoint);
-                latestCoordsMsgIdRecvd = theMsg.Coords.MsgId;
-                dataManager.NewArtyMsgReceived(theMsg);
-                if (dataManager.OperatingMode == DataManager.ProgramOperatingMode.eGunner)
+                if (theSession == null)
                 {
-                    latestCoordsMsgIdSent = latestCoordsMsgIdRecvd;
-                    SendCoordsToAll(theMsg);
+                    GlobalLogger.Log($"UdpServerHandler.processMsg() Coords - SessionId {theMsg.SessionId} not found.");
+                    return;
+                }
+                if (!theSession.IsUserInSession(remoteEndPoint))
+                {
+                    return;
+                }
+
+                SendCoordsAck(theMsg.Coords.MsgId, remoteEndPoint);
+
+                theSession.LatestCoordsMsgIdReceived = theMsg.Coords.MsgId;
+                //latestCoordsMsgIdRecvd = theMsg.Coords.MsgId;
+                if (displayManager.userOptions.LastSessionId == theMsg.SessionId)
+                {
+                    displayManager.NewArtyMsgReceived(theMsg);
+                }
+                
+                if (displayManager.OperatingMode == DisplayManager.ProgramOperatingMode.eGunner)
+                {
+                    SendCoordsToAllInSession(theMsg);
                 }
             }
             else if (theMsg.ClientReport != null) // Received by the server.
             {
+                if (!theSession.IsUserInSession(remoteEndPoint))
+                {
+                    UdpHandler.RemoteUserEntry userEntry = new UdpHandler.RemoteUserEntry(remoteEndPoint, theMsg.Callsign);
+                    userEntry.Update(theMsg);
+                    //userEntry.LastClientReport = theMsg.ClientReport;
+                    bool userValidated = theSession.ValidateAndAddUser(userEntry);
+                    if (!userValidated)
+                    {
+                        SendPasswordRefused(remoteEndPoint);
+                        GlobalLogger.Log($"UdpServerHandler.processMsg() ClientReport - User {theMsg.Callsign} not validated for session {theMsg.SessionId}. Ignoring.");
+                        return;
+                    }
+                }
+                else
+                {
+                    UdpHandler.RemoteUserEntry userEntry = theSession.ActiveUserEntries[remoteEndPoint];
+                    userEntry.Update(theMsg);
+                }
+
                 //GlobalLogger.Log($"New [ClientStatus] received from CallSign: {theMsg.Callsign} Type: {theMsg.ClientReport.ClientType}, LastCoordsIdRecvd: {theMsg.ClientReport.LastCoordsIdReceived}, LastCoordsIdSent: {theMsg.ClientReport.LastCoordsIdSent}");
                 // If this is a gunner client, and they did not receive the latest coords...
-                if ((theMsg.ClientReport.LastCoordsIdReceived != latestCoordsMsgIdSent) && (theMsg.ClientReport.ClientType == 2))
+                if ((theMsg.ClientReport.LastCoordsIdReceived != theSession.LatestCoordsMsgIdSent) && (theMsg.ClientReport.ClientType == 2))
                 {
-                    GlobalLogger.Log($"UdpServerHandler.resendCoordsToClient -> {theMsg.Callsign}. Client last received msgId: {theMsg.ClientReport.LastCoordsIdReceived}, Server last sent msgId: {latestCoordsMsgIdSent} ");
-                    resendCoordsToClient(remoteEndPoint);
+                    GlobalLogger.Log($"UdpServerHandler.resendCoordsToClient -> {theMsg.Callsign}. Client last received msgId: {theMsg.ClientReport.LastCoordsIdReceived}, Server last sent msgId: {theSession.LatestCoordsMsgIdSent} ");
+                    resendCoordsToClient(theSession, remoteEndPoint);
                 }
                 //Console.WriteLine($"UdpServerHandler.processMsg() [ClientStatus] CallSign: {theMsg.Callsign} Type: {theMsg.ClientReport.ClientType}");
                 
             }
         }
 
+        public void SendPasswordRefused(IPEndPoint remoteEndPoint)
+        {
+            ArtyMsg passwordRefusedMsg = new ArtyMsg();
+            passwordRefusedMsg.ServerCommand  = new ServerCommand();
+            passwordRefusedMsg.ServerCommand.CommandType = 1;
+            byte[] rawData = passwordRefusedMsg.ToByteArray();
+            int dataLength = rawData.Length;
+            udpClient.SendAsync(rawData, dataLength, remoteEndPoint);
+        }
+
         public void SendCoordsAck(int coordsId, IPEndPoint remoteEndPoint)
         {
             ArtyMsg ackMsg = new ArtyMsg();
             ackMsg.Ack = new AckMsgId();
-            ackMsg.Callsign = dataManager.GetMyDisplayableCallsign();
+            ackMsg.Callsign = displayManager.GetMyDisplayableCallsign();
             ackMsg.Ack.MsgId = coordsId;
 
             byte[] rawData = ackMsg.ToByteArray();
@@ -185,25 +230,32 @@ namespace DakkaDataLink
             udpClient.SendAsync(rawData, dataLength, remoteEndPoint);
         }
 
-        public void SendCoordsToAll(ArtyMsg msg)
+        public void SendCoordsToAllInSession(ArtyMsg msg)
         {
             if (msg.Coords == null)
             {
-                GlobalLogger.Log($"*** UdpServerHandler.SendToAll null parameter");
+                GlobalLogger.Log($"*** UdpServerHandler.SendCoordsToAllInSession null parameter");
                 return;
             }
             try
             {
-                if (dataManager.OperatingMode == DataManager.ProgramOperatingMode.eSpotter)
+                ServerSession? theSession = m_SessionIdMap[msg.SessionId];
+                if (theSession == null)
                 {
-                    latestCoordsMsgIdSent++;
+                    GlobalLogger.Log($"UdpServerHandler.SendCoordsToAllInSession SessionId {msg.SessionId} not found.");
+                    return;
                 }
-                msg.Coords.MsgId = latestCoordsMsgIdSent;
+
+                if (displayManager.OperatingMode == DisplayManager.ProgramOperatingMode.eSpotter)
+                {
+                    theSession.LatestCoordsMsgIdSent++;
+                }
+                msg.Coords.MsgId = theSession.LatestCoordsMsgIdSent;
                 GlobalLogger.Log($"UdpServerHandler sending new ArtyMsg: CallSign: {msg.Callsign} Az: {msg.Coords.Az}, Dist: {msg.Coords.Dist}, MsgId: {msg.Coords.MsgId}");
                 byte[] rawData = msg.ToByteArray();
                 int dataLength = rawData.Length;
                 //Stopwatch stopwatch = Stopwatch.StartNew();
-                foreach (IPEndPoint endPoint in m_RemoteUserEntries.Keys)
+                foreach (IPEndPoint endPoint in theSession.ActiveUserEntries.Keys)
                 {
                     udpClient.SendAsync(rawData, dataLength, endPoint);
                 }
@@ -225,50 +277,63 @@ namespace DakkaDataLink
             }
         }
 
-        private void SendServerReport()
+        private void SendServerReports()
         {
             removeTimedOutUsers();
-            ArtyMsg msg = new ArtyMsg();
-            string myDisplayableCallsign = dataManager.GetMyDisplayableCallsign();
-            msg.Callsign = myDisplayableCallsign;
-            msg.ServerReport = new ServerReport();
-            msg.ServerReport.LastCoordsIdReceived = latestCoordsMsgIdRecvd;
-            msg.ServerReport.LastCoordsIdSent = latestCoordsMsgIdSent;
 
-            msg.ServerReport.ActiveCallsigns.Add(myDisplayableCallsign + " (Server)");
-            foreach (UdpHandler.RemoteUserEntry users in m_RemoteUserEntries.Values)
+            foreach (ServerSession session in m_SessionIdMap.Values)
             {
-                msg.ServerReport.ActiveCallsigns.Add(users.CallSign);
-            }
-            dataManager.UpdateConnectedUsers(msg.ServerReport.ActiveCallsigns.ToList<string>());
-            try
-            {
-                byte[] rawData = msg.ToByteArray();
-                int dataLength = rawData.Length;
-                //Stopwatch stopwatch = Stopwatch.StartNew();
-                foreach (IPEndPoint endPoint in m_RemoteUserEntries.Keys)
+                ArtyMsg msg = new ArtyMsg();
+                string myDisplayableCallsign = displayManager.GetMyDisplayableCallsign();
+                msg.Callsign = myDisplayableCallsign;
+                msg.ServerReport = new ServerReport();
+                msg.ServerReport.LastCoordsIdReceived = session.LatestCoordsMsgIdReceived;
+                msg.ServerReport.LastCoordsIdSent = session.LatestCoordsMsgIdSent;
+
+                msg.ServerReport.ActiveCallsigns.Add(myDisplayableCallsign + " (Server)");
+                foreach (UdpHandler.RemoteUserEntry users in session.ActiveUserEntries.Values)
                 {
-                    udpClient.SendAsync(rawData, dataLength, endPoint);
+                    msg.ServerReport.ActiveCallsigns.Add(users.CallSign);
                 }
-                //stopwatch.Stop();
-                ////Console.WriteLine($"UdpServerHandler.SendServerReport sent to {m_RemoteUserEntries.Keys.Count} clients in {stopwatch.ElapsedMilliseconds} milliseconds");
-                //GlobalLogger.Log($"UdpServerHandler.SendServerReport sent to {m_RemoteUserEntries.Keys.Count} clients in {stopwatch.ElapsedMilliseconds} milliseconds");
+                if (session.SessionId == displayManager.userOptions.LastSessionId)
+                {
+                    displayManager.UpdateConnectedUsers(msg.ServerReport.ActiveCallsigns.ToList<string>());
+                }
 
-            }
-            catch (Exception ex)
-            {
-                //Console.WriteLine($"*** UdpServerHandler.SendServerReport Other Exception: {ex.Message}");
-                GlobalLogger.Log($"*** UdpServerHandler.SendServerReport Other Exception: {ex.Message}");
+                try
+                {
+                    byte[] rawData = msg.ToByteArray();
+                    int dataLength = rawData.Length;
+                    //Stopwatch stopwatch = Stopwatch.StartNew();
+                    foreach (IPEndPoint endPoint in session.ActiveUserEntries.Keys)
+                    {
+                        udpClient.SendAsync(rawData, dataLength, endPoint);
+                    }
+                    //stopwatch.Stop();
+                    ////Console.WriteLine($"UdpServerHandler.SendServerReports sent to {m_RemoteUserEntries.Keys.Count} clients in {stopwatch.ElapsedMilliseconds} milliseconds");
+                    //GlobalLogger.Log($"UdpServerHandler.SendServerReports sent to {m_RemoteUserEntries.Keys.Count} clients in {stopwatch.ElapsedMilliseconds} milliseconds");
+
+                }
+                catch (Exception ex)
+                {
+                    //Console.WriteLine($"*** UdpServerHandler.SendServerReports Other Exception: {ex.Message}");
+                    GlobalLogger.Log($"*** UdpServerHandler.SendServerReports Other Exception: {ex.Message}");
+                }
             }
         }
 
-        private void resendCoordsToClient(IPEndPoint endPoint)
+        private void resendCoordsToClient(ServerSession session, IPEndPoint endPoint)
         {
             //Console.WriteLine($"UdpServerHandler.resendCoordsToClient -> {endPoint}");
-            
-            ArtyMsg msg = dataManager.getAssembledCoords();
-            msg.Coords.MsgId = latestCoordsMsgIdSent;
-            byte[] rawData = msg.ToByteArray();
+
+            ArtyMsg artyMsg = new ArtyMsg();
+            artyMsg.Coords = new Coords();
+            artyMsg.Coords.MsgId = session.LatestCoordsMsgIdReceived;
+            artyMsg.Coords.Az = session.LatestAz;
+            artyMsg.Coords.Dist = session.LatestDist;
+            artyMsg.Callsign = displayManager.GetMyDisplayableCallsign();
+
+            byte[] rawData = artyMsg.ToByteArray();
             int dataLength = rawData.Length;
             try
             {
@@ -283,33 +348,39 @@ namespace DakkaDataLink
 
         private void removeTimedOutUsers()
         {
-            List<IPEndPoint> usersToRemove = new List<IPEndPoint>();
-            List<string> userCallsignsToUpdate = new List<string>();
-            foreach (KeyValuePair<IPEndPoint, UdpHandler.RemoteUserEntry> activeUserEntry in m_RemoteUserEntries)
+            foreach (ServerSession session in m_SessionIdMap.Values)
             {
-                TimeSpan timeSinceLastSeen = DateTime.Now - activeUserEntry.Value.TimeLastSeen;
-                if ((activeUserEntry.Value.CanTimeOut) && (timeSinceLastSeen.TotalMilliseconds > DdlConstants.REMOTE_USER_TIMEOUT_MILLISECONDS))
+                List<IPEndPoint> usersToRemove = new List<IPEndPoint>();
+                List<string> userCallsignsToUpdate = new List<string>();
+                foreach (KeyValuePair<IPEndPoint, UdpHandler.RemoteUserEntry> activeUserEntry in session.ActiveUserEntries)
                 {
-                    usersToRemove.Add(activeUserEntry.Key);
-                    dataManager.ConnectedUsersCallsigns.Remove(activeUserEntry.Value.CallSign);
-                    //Console.WriteLine($"UdpServerHandler {activeUserEntry.Value.CallSign} ({activeUserEntry.Key}) timed out, removing from active users list.");
-                    GlobalLogger.Log($"UdpServerHandler {activeUserEntry.Value.CallSign} ({activeUserEntry.Key}) timed out.");
+                    TimeSpan timeSinceLastSeen = DateTime.Now - activeUserEntry.Value.TimeLastSeen;
+                    if ((activeUserEntry.Value.CanTimeOut) && (timeSinceLastSeen.TotalMilliseconds > DdlConstants.REMOTE_USER_TIMEOUT_MILLISECONDS))
+                    {
+                        usersToRemove.Add(activeUserEntry.Key);
+                        if (session.SessionId == displayManager.userOptions.LastSessionId)
+                        {
+                            displayManager.ConnectedUsersCallsigns.Remove(activeUserEntry.Value.CallSign);
+                        }
+                        //Console.WriteLine($"UdpServerHandler {activeUserEntry.Value.CallSign} ({activeUserEntry.Key}) timed out, removing from active users list.");
+                        GlobalLogger.Log($"UdpServerHandler {activeUserEntry.Value.CallSign} ({activeUserEntry.Key}) timed out.");
+                    }
+                    else
+                    {
+                        //userCallsignsToUpdate.Add(activeUserEntry.Value.CallSign);
+                    }
                 }
-                else
+                foreach (IPEndPoint timedOutUser in usersToRemove)
                 {
-                    userCallsignsToUpdate.Add(activeUserEntry.Value.CallSign);
+                    session.ActiveUserEntries.Remove(timedOutUser);
                 }
+                if (usersToRemove.Count > 0)
+                {
+                    GlobalLogger.Log($"{session.ActiveUserEntries.Count} active users in session {session.SessionId}");
+                }
+                
+                //displayManager.UpdateConnectedUsers(userCallsignsToUpdate);
             }
-            foreach (IPEndPoint timedOutUser in usersToRemove)
-            {
-                m_RemoteUserEntries.Remove(timedOutUser);
-            }
-            if (usersToRemove.Count > 0)
-            {
-                GlobalLogger.Log($"{m_RemoteUserEntries.Count} active users.");
-            }
-            //dataManager.UpdateConnectedUsers(userCallsignsToUpdate);
-
         }
 
 

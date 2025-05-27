@@ -12,7 +12,7 @@ namespace DakkaDataLink
                 if (m_instance == null)
                 {
                     m_instance = new GlobalLogger();
-                    m_instance.dataManager = DataManager.Instance;
+                    m_instance.dataManager = DisplayManager.Instance;
                 }
                 return m_instance;
             }
@@ -26,7 +26,7 @@ namespace DakkaDataLink
             loggerThread.Start();
         }
 
-        private DataManager dataManager;
+        private DisplayManager dataManager;
         private Thread loggerThread;
 
         private static readonly object queueLock = new object();

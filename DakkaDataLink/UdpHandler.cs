@@ -35,7 +35,7 @@ namespace DakkaDataLink
         {
 
         }
-        private DataManager dataManager = DataManager.Instance;
+        private DisplayManager dataManager = DisplayManager.Instance;
         private UdpServerHandler serverHandler = UdpServerHandler.Instance;
         private UdpClientHandler clientHandler = UdpClientHandler.Instance;
 
@@ -90,10 +90,10 @@ namespace DakkaDataLink
                 // TODO: Report error.
                 return;
             }
-
+            msg.SessionId = dataManager.userOptions.LastSessionId;
             if (m_RunningAsServer)
             {
-                serverHandler.SendCoordsToAll(msg);
+                serverHandler.SendCoordsToAllInSession(msg);
             }
             else
             {
@@ -126,12 +126,12 @@ namespace DakkaDataLink
                 }
                 TimeLastSeen = DateTime.Now;
             }
-            IPEndPoint RemoteEndPoint { get; set; }
+            internal IPEndPoint RemoteEndPoint { get; set; }
             internal string CallSign { get; set; }
             internal ServerReport LastServerReport { get; set; }
             internal ClientReport LastClientReport { get; set; }
             internal DateTime TimeLastSeen { get; set; }
-
+            internal string CurrentSessionId { get; set; }
             internal bool CanTimeOut { get; set; } = true;
         }
     }

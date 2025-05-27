@@ -14,7 +14,7 @@ namespace DakkaDataLink
         private static GlobalLogger logger = GlobalLogger.Instance;
         public static KeyboardListener KListener = new KeyboardListener();
         private static SpotterKeystrokeHandler keystrokeHandler = SpotterKeystrokeHandler.Instance;
-        DataManager dataManager = DataManager.Instance;
+        DisplayManager dataManager = DisplayManager.Instance;
         private static RawKeyEventHandler? keyDownHandler;
         private static RawKeyEventHandler? keyUpHandler;
         private void Application_Startup(object sender, StartupEventArgs e)

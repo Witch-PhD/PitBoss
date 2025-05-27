@@ -13,7 +13,7 @@ namespace DakkaDataLink
 {
     internal class UdpClientHandler
     {
-        private DataManager dataManager = DataManager.Instance;
+        private DisplayManager displayManager = DisplayManager.Instance;
         public UdpClient udpClient;// = new UdpClient(DdlConstants.SERVER_PORT);
         private Thread? m_udpReceiveThread;
 
@@ -66,7 +66,7 @@ namespace DakkaDataLink
                 GlobalLogger.Log($"UdpHandler starting as client...");
                 m_TimeServerLastSeen = DateTime.Now;
                 receiveTaskCancelSource = new CancellationTokenSource();
-                dataManager.UdpHandlerActive = true;
+                displayManager.UdpHandlerActive = true;
                 m_udpReceiveThread = new Thread(receivingTask);
                 m_udpReceiveThread.Name = "UdpReceiveThread";
                 m_udpReceiveThread.IsBackground = true;
@@ -99,7 +99,7 @@ namespace DakkaDataLink
                     // TODO: Report error. Retry or kill.
                 }
             }
-            dataManager.UdpHandlerActive = false; // TODO: Move this somewhere else.
+            displayManager.UdpHandlerActive = false; // TODO: Move this somewhere else.
             m_udpReceiveThread = null; // TODO: move this up a block or two?
             m_serverIpEndPoint = null; // TODO: maybe move this to the receive task?
             receiveTaskCancelSource = null;
@@ -115,13 +115,14 @@ namespace DakkaDataLink
             TimeSpan timeSinceServerReport = now - m_TimeServerLastSeen;
             if (timeSinceServerReport.TotalMilliseconds > DdlConstants.REMOTE_USER_TIMEOUT_MILLISECONDS)
             {
-                dataManager.UpdateConnectedUsers(new List<string>());
+                displayManager.UpdateConnectedUsers(new List<string>());
             }
             ArtyMsg msg = new ArtyMsg();
-            msg.Callsign = dataManager.GetMyDisplayableCallsign();
+            msg.SessionId = displayManager.userOptions.LastSessionId;
+            msg.Callsign = displayManager.GetMyDisplayableCallsign();
             msg.ClientReport = new ClientReport();
-            msg.ClientReport.ClientType = (int)dataManager.OperatingMode;
-            msg.ClientReport.SpotterPassword = "";
+            msg.ClientReport.ClientType = (int)displayManager.OperatingMode;
+            msg.ClientReport.SessionPassword = displayManager.userOptions.LastSessionPassword;
             msg.ClientReport.LastCoordsIdReceived = latestCoordsMsgIdRecvd;
             msg.ClientReport.LastCoordsIdSent = latestCoordsMsgIdSent;
 
@@ -214,7 +215,7 @@ namespace DakkaDataLink
             if (theMsg.Coords != null)
             {
                 latestCoordsMsgIdRecvd = theMsg.Coords.MsgId;
-                dataManager.NewArtyMsgReceived(theMsg);
+                displayManager.NewArtyMsgReceived(theMsg);
             }
             if (theMsg.Ack != null)
             {
@@ -227,15 +228,15 @@ namespace DakkaDataLink
             {
                 m_TimeServerLastSeen = DateTime.Now;
                 List<string> connectedUsersList = theMsg.ServerReport.ActiveCallsigns.ToList<string>();
-                dataManager.UpdateConnectedUsers(connectedUsersList);
+                displayManager.UpdateConnectedUsers(connectedUsersList);
 
                 //Console.WriteLine($"UdpHandler.processMsg() [ServerStatus] CallSign: {theMsg.Callsign} ActiveCallsigns: {theMsg.ServerReport.ActiveCallsigns}");
                 //GlobalLogger.Log($"New [ServerStatus] from CallSign: {theMsg.Callsign}, LastCoordsIdRecvd: {theMsg.ServerReport.LastCoordsIdReceived}, LastCoordsIdSent: {theMsg.ServerReport.LastCoordsIdSent}, ActiveCallsigns: {theMsg.ServerReport.ActiveCallsigns}");
 
-                if ((lastCoordsSendAcknowledged == false) && (dataManager.OperatingMode == DataManager.ProgramOperatingMode.eSpotter))
+                if ((lastCoordsSendAcknowledged == false) && (displayManager.OperatingMode == DisplayManager.ProgramOperatingMode.eSpotter))
                 {
                     GlobalLogger.Log($"UdpClientHandler resending coords to server -> {m_serverIpEndPoint}");
-                    ArtyMsg msg = dataManager.getAssembledCoords();
+                    ArtyMsg msg = displayManager.getAssembledCoords();
                     msg.Coords.MsgId = latestCoordsMsgIdSent;
                     byte[] rawData = msg.ToByteArray();
                     int dataLength = rawData.Length;
@@ -248,6 +249,23 @@ namespace DakkaDataLink
                         //Console.WriteLine($"*** UdpServerHandler.resendCoordsToClient Other Exception: {ex.Message}");
                         GlobalLogger.Log($"*** UdpClientHandler resend coords Other Exception: {ex.Message}");
                     }
+                }
+            }
+            else if (theMsg.ServerCommand != null)
+            {
+                GlobalLogger.Log($"ServerCommand received: {theMsg.ServerCommand.CommandType}");
+                switch (theMsg.ServerCommand.CommandType)
+                {
+                    case 0: // Not used
+                        break;
+                    case 1: // Password refused.
+                        GlobalLogger.Log($"*** Server refused session password.");
+                        displayManager.HandleSessionPasswordRefused();
+
+                        break;
+                    default:
+
+                        break;
                 }
             }
         }

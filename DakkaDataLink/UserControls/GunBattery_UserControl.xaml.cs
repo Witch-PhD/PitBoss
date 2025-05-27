@@ -9,13 +9,13 @@ namespace DakkaDataLink.UserControls
     {
         public GunBattery_UserControl()
         {
-            dataManager = DataManager.Instance;
+            dataManager = DisplayManager.Instance;
             InitializeComponent();
             
             DataContext = dataManager;
             PreviousCoords_DataGrid.ItemsSource = dataManager.PreviousCoords;
         }
-        DataManager dataManager;
+        DisplayManager dataManager;
 
         
 

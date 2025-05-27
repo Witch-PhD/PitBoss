@@ -11,13 +11,13 @@ namespace DakkaDataLink.UserControls
     /// </summary>
     public partial class Overlay_Window : Window, INotifyPropertyChanged
     {
-        DataManager dataManager;
+        DisplayManager dataManager;
         public Overlay_Window()
         {
-            dataManager = DataManager.Instance;
+            dataManager = DisplayManager.Instance;
             InitializeComponent();
             m_MediaPlayer = new MediaPlayer();
-            //DataContext = DataManager.Instance;
+            //DataContext = DisplayManager.Instance;
             this.SizeToContent = SizeToContent.WidthAndHeight;
             AzLabel_TextBlock.DataContext = dataManager.userOptions;
             DistLabel_TextBlock.DataContext = dataManager.userOptions;

@@ -38,7 +38,7 @@ namespace DakkaDataLink.UserControls
 
         public UserOptions_UserControl()
         {
-            dataManager = DataManager.Instance;
+            dataManager = DisplayManager.Instance;
             InitializeComponent();
             DataContext = dataManager;
             initComboBoxes();
@@ -47,7 +47,7 @@ namespace DakkaDataLink.UserControls
             dataManager.userOptions.PropertyChanged += OnPropertyChanged;
         }
 
-        DataManager dataManager;
+        DisplayManager dataManager;
 
         private void initComboBoxes()
         {

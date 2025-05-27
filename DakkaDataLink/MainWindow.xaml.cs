@@ -25,7 +25,7 @@ namespace DakkaDataLink
             #if DEBUG
             AllocConsole();
             #endif
-            dataManager = DataManager.Instance;
+            dataManager = DisplayManager.Instance;
             LoadSettings();
             
             if (dataManager.userOptions.SaveSelectedLanguage == false)
@@ -59,12 +59,12 @@ namespace DakkaDataLink
             SaveSelectedLanguage_MenuItem.DataContext = dataManager.userOptions;
         }
 
-        DataManager dataManager;
+        DisplayManager dataManager;
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
-            //dataManager.StopGrpcClient();
-            //dataManager.StopGrpcServer();
+            //displayManager.StopGrpcClient();
+            //displayManager.StopGrpcServer();
             dataManager.StopUdp();
             theUserOptionsUserControl.CloseAllWindows();
             GlobalLogger.Log("Application exiting.");
@@ -76,11 +76,11 @@ namespace DakkaDataLink
             //theGunnerUserControl.CloseAllWindows();
         }
 
-        public void SetOperatingMode(DataManager.ProgramOperatingMode mode)
+        public void SetOperatingMode(DisplayManager.ProgramOperatingMode mode)
         {
             switch (mode)
             {
-                case DataManager.ProgramOperatingMode.eIdle:
+                case DisplayManager.ProgramOperatingMode.eIdle:
                     //Gunner_TabItem.IsEnabled = true;
                     //Spotter_TabItem.IsEnabled = true;
                     dataManager.DeactivateKeyboardListener();
@@ -88,7 +88,7 @@ namespace DakkaDataLink
                     Spotter_TabItem.Visibility = Visibility.Collapsed;
                     break;
 
-                case DataManager.ProgramOperatingMode.eSpotter:
+                case DisplayManager.ProgramOperatingMode.eSpotter:
                     //Spotter_TabItem.IsSelected = true;
                     //Gunner_TabItem.IsEnabled = false;
                     dataManager.ActivateKeyboardListener();
@@ -96,7 +96,7 @@ namespace DakkaDataLink
                     Gunner_TabItem.Visibility = Visibility.Collapsed;
                     break;
 
-                case DataManager.ProgramOperatingMode.eGunner:
+                case DisplayManager.ProgramOperatingMode.eGunner:
                     //Gunner_TabItem.IsSelected = true;
                     //Spotter_TabItem.IsEnabled = false;
                     dataManager.DeactivateKeyboardListener();
@@ -264,7 +264,7 @@ namespace DakkaDataLink
 
         //    private void SaveSelectedLanguage_CheckBox_Changed(object sender, RoutedEventArgs e)
         //    {
-        //        dataManager.userOptions.SaveSelectedLanguage = SaveSelectedLanguage_CheckBox.IsChecked == true;
+        //        displayManager.userOptions.SaveSelectedLanguage = SaveSelectedLanguage_CheckBox.IsChecked == true;
         //    }
         //
         //    private void CheckSaveSelectedLanguageWithoudEvent(bool isChecked)

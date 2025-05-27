@@ -12,21 +12,21 @@ namespace DakkaDataLink.UserControls
         
         public Spotter_UserControl()
         {
-            dataManager = DataManager.Instance;
+            dataManager = DisplayManager.Instance;
             InitializeComponent();
-            DataContext = DataManager.Instance;
-            //Az_TextBox.DataContext = DataManager.Instance;
-            //Dist_TextBox.DataContext = DataManager.Instance;
+            DataContext = DisplayManager.Instance;
+            //Az_TextBox.DataContext = DisplayManager.Instance;
+            //Dist_TextBox.DataContext = DisplayManager.Instance;
             PreviousCoords_DataGrid.ItemsSource = dataManager.PreviousCoords;
             SavedCoords_DataGrid.ItemsSource = dataManager.SavedCoords;
         }
-        DataManager dataManager;
+        DisplayManager dataManager;
 
         
 
         private void SendCoords_Button_Click(object sender, RoutedEventArgs e)
         {
-            DataManager.Instance.SendCoords();
+            DisplayManager.Instance.SendCoords();
         }
 
         private void TextBox_UpdateOnEnter(object sender, KeyEventArgs args)

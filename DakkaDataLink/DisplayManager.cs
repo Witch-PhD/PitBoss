@@ -12,16 +12,16 @@ using System.Windows.Input;
 
 namespace DakkaDataLink
 {
-    public class DataManager : INotifyPropertyChanged
+    public class DisplayManager : INotifyPropertyChanged
     {
-        private static DataManager? m_Instance;
-        public static DataManager Instance
+        private static DisplayManager? m_Instance;
+        public static DisplayManager Instance
         {
             get
             {
                 if (m_Instance == null)
                 {
-                    m_Instance = new DataManager();
+                    m_Instance = new DisplayManager();
                     m_Instance.udpHandler = UdpHandler.Instance;
                     m_Instance.m_userOptions = new UserOptions();
                     m_Instance.m_ArtyProfiles = ArtilleryProfiles.Instance;
@@ -35,7 +35,7 @@ namespace DakkaDataLink
         }
 
         
-        private DataManager()
+        private DisplayManager()
         {
             //m_userOptions = new UserOptions();
             
@@ -260,6 +260,7 @@ namespace DakkaDataLink
         public ArtyMsg getAssembledCoords()
         {
             ArtyMsg artyMsg = new ArtyMsg();
+            artyMsg.SessionId = userOptions.LastSessionId;
             artyMsg.Coords = new Coords();
             artyMsg.Coords.Az = LatestAz;
             artyMsg.Coords.Dist = LatestDist;
@@ -332,6 +333,14 @@ namespace DakkaDataLink
             udpHandler.SendCoords(artyMsg);
         }
 
+        public event EventHandler<bool> sessionPasswordRefused;
+        public void HandleSessionPasswordRefused()
+        {
+            sessionPasswordRefused?.Invoke(this, true);
+            //Console.WriteLine("DisplayManager.NotifySessionPasswordRefused()");
+            GlobalLogger.Log("Session password refused by server.");
+        }
+
         private void addPrevCoordsEntry(ArtyMsg artyMsg)
         {
             lock (PrevCoordsCollectionLock)
@@ -355,7 +364,7 @@ namespace DakkaDataLink
                 unpackIncomingCoords(theMsg);
                 newCoordsReceived?.Invoke(this, true);
                 addPrevCoordsEntry(theMsg);
-                //Console.WriteLine($"DataManager.NewArtyMsgReceived() [Coords] CallSign: {theMsg.Callsign} Az: {theMsg.Coords.Az}, Dist: {theMsg.Coords.Dist}");
+                //Console.WriteLine($"DisplayManager.NewArtyMsgReceived() [Coords] CallSign: {theMsg.Callsign} Az: {theMsg.Coords.Az}, Dist: {theMsg.Coords.Dist}");
                 GlobalLogger.Log($"New [Coords] received from {theMsg.Callsign}, Az: {theMsg.Coords.Az}, Dist: {theMsg.Coords.Dist}, MsgId: {theMsg.Coords.MsgId}");
             }
             else

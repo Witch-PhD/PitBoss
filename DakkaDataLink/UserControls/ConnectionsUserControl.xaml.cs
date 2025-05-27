@@ -13,12 +13,12 @@ namespace DakkaDataLink.UserControls
     {
         public ConnectionsUserControl()
         {
-            dataManager = DataManager.Instance;
+            displayManager = DisplayManager.Instance;
             InitializeComponent();
-            dataManager.userOptions.PropertyChanged += UserOptions_PropertyChanged;
-            MyCallsign_Textbox.DataContext = dataManager;
-            ActiveUsers_DataGrid.ItemsSource = dataManager.ConnectedUsersCallsigns;
-
+            displayManager.userOptions.PropertyChanged += UserOptions_PropertyChanged;
+            MyCallsign_Textbox.DataContext = displayManager;
+            ActiveUsers_DataGrid.ItemsSource = displayManager.ConnectedUsersCallsigns;
+            displayManager.sessionPasswordRefused += HandlePasswordRefused;
 #if DEBUG
             serverIp_TextBox.Text = "127.0.0.1";
 #endif
@@ -27,21 +27,49 @@ namespace DakkaDataLink.UserControls
 
         private void UserOptions_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            serverIp_TextBox.Text = dataManager.userOptions.LastServerIp;
+            serverIp_TextBox.Text = displayManager.userOptions.LastServerIp;
         }
 
-        private DataManager dataManager;
+        private DisplayManager displayManager;
+
+        private void HandlePasswordRefused(object? sender, bool arg)
+        {
+            displayManager.StopUdp();
+            Dispatcher.BeginInvoke(() => passwordRefused());
+        }
+
+        private void passwordRefused()
+        {
+            MainWindow mainWindow = Window.GetWindow(this) as MainWindow;
+            
+            mainWindow.SetOperatingMode(DisplayManager.ProgramOperatingMode.eIdle);
+            StartStopUdpClient_Button.SetResourceReference(ContentProperty, "button_connect");
+
+            serverIp_TextBox.IsEnabled = true;
+            gunnerMode_RadioButton.IsEnabled = true;
+            spotterMode_RadioButton.IsEnabled = true;
+            StartStopUdpServer_Button.IsEnabled = true;
+            MyCallsign_Textbox.IsEnabled = true;
+
+            string messageBoxText = "Session password refused.";
+            string caption = "Incorrect password.";
+            MessageBoxButton button = MessageBoxButton.OK;
+            MessageBoxImage icon = MessageBoxImage.Asterisk;
+            MessageBoxResult result;
+
+            result = MessageBox.Show(messageBoxText, caption, button, icon, MessageBoxResult.Yes);
+        }
 
         private void StartStopUdpClient_Button_Click(object sender, RoutedEventArgs e)
         {
-            if (dataManager.UdpHandlerActive) // Stopping
+            if (displayManager.UdpHandlerActive) // Stopping
             {
-                dataManager.StopUdp();
+                displayManager.StopUdp();
                 //StartStopUdpClient_Button.Content = "Connect to Server";
                 StartStopUdpClient_Button.SetResourceReference(ContentProperty, "button_connect");
 
                 MainWindow mainWindow = Window.GetWindow(this) as MainWindow;
-                mainWindow.SetOperatingMode(DataManager.ProgramOperatingMode.eIdle);
+                mainWindow.SetOperatingMode(DisplayManager.ProgramOperatingMode.eIdle);
 
                 serverIp_TextBox.IsEnabled = true;
                 gunnerMode_RadioButton.IsEnabled = true;
@@ -87,9 +115,12 @@ namespace DakkaDataLink.UserControls
                     }
                 }
 
+                displayManager.userOptions.LastSessionId = sessionId_TextBox.Text.Trim();
+                displayManager.userOptions.LastSessionPassword = sessionPassword_TextBox.Text.Trim();
+
                 setOperatingModes();
-                dataManager.userOptions.LastServerIp = serverIp_TextBox.Text;
-                dataManager.StartUdpClient(targetIpString);
+                displayManager.userOptions.LastServerIp = serverIp_TextBox.Text;
+                displayManager.StartUdpClient(targetIpString);
                 //StartStopUdpClient_Button.Content = "Disconnect from Server";
                 StartStopUdpClient_Button.SetResourceReference(ContentProperty, "button_disconnect");
 
@@ -102,13 +133,13 @@ namespace DakkaDataLink.UserControls
 
         private void StartStopUdpServer_Button_Click(Object sender, RoutedEventArgs e)
         {
-            if (dataManager.UdpHandlerActive) // Stopping
+            if (displayManager.UdpHandlerActive) // Stopping
             {
-                DataManager.Instance.StopUdp();
+                DisplayManager.Instance.StopUdp();
                 StartStopUdpServer_Button.Content = "Start as Server";
 
                 MainWindow mainWindow = Window.GetWindow(this) as MainWindow;
-                mainWindow.SetOperatingMode(DataManager.ProgramOperatingMode.eIdle);
+                mainWindow.SetOperatingMode(DisplayManager.ProgramOperatingMode.eIdle);
 
                 serverIp_TextBox.IsEnabled = true;
                 gunnerMode_RadioButton.IsEnabled = true;
@@ -116,12 +147,16 @@ namespace DakkaDataLink.UserControls
                 StartStopUdpClient_Button.IsEnabled = true;
                 MyCallsign_Textbox.IsEnabled = true;
                 userIp_stackPanel.Visibility = Visibility.Collapsed;
+                sessionId_TextBox.IsEnabled = true;
+                sessionPassword_TextBox.IsEnabled = true;
             }
             else // Starting
             {
+                displayManager.userOptions.LastSessionId = sessionId_TextBox.Text.Trim();
+                displayManager.userOptions.LastSessionPassword = sessionPassword_TextBox.Text.Trim();
                 setOperatingModes();
                 bool gotIp = ShowExternalIp();
-                DataManager.Instance.StartUdpServer();
+                DisplayManager.Instance.StartUdpServer();
                 StartStopUdpServer_Button.Content = "Stop Server";
                 if (gotIp)
                 {
@@ -130,7 +165,8 @@ namespace DakkaDataLink.UserControls
                 StartStopUdpClient_Button.IsEnabled = false;
                 serverIp_TextBox.IsEnabled = false;
                 MyCallsign_Textbox.IsEnabled = false;
-                
+                sessionId_TextBox.IsEnabled = false;
+                sessionPassword_TextBox.IsEnabled = false;
             }
             
         }
@@ -138,21 +174,21 @@ namespace DakkaDataLink.UserControls
         private void setOperatingModes()
         {
             MainWindow mainWindow = Window.GetWindow(this) as MainWindow;
-            DataManager.ProgramOperatingMode newMode;
+            DisplayManager.ProgramOperatingMode newMode;
 
             if ((bool)gunnerMode_RadioButton.IsChecked)
             {
-                newMode = DataManager.ProgramOperatingMode.eGunner;
+                newMode = DisplayManager.ProgramOperatingMode.eGunner;
             }
             else
             {
-                newMode = DataManager.ProgramOperatingMode.eSpotter;
+                newMode = DisplayManager.ProgramOperatingMode.eSpotter;
             }
 
             gunnerMode_RadioButton.IsEnabled = false;
             spotterMode_RadioButton.IsEnabled = false;
 
-            dataManager.OperatingMode = newMode;
+            displayManager.OperatingMode = newMode;
             mainWindow.SetOperatingMode(newMode);
 
         }

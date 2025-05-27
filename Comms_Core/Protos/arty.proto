@@ -12,12 +12,14 @@ service Arty
 message ArtyMsg
 {
 	string Callsign = 1;
+	string SessionId = 2;
 	oneof MsgType
 	{
-		Coords coords = 2;
-		ClientReport clientReport = 3;
-		ServerReport ServerReport = 4;
-		AckMsgId Ack = 5;
+		Coords coords = 3;
+		ClientReport clientReport = 4;
+		ServerReport ServerReport = 5;
+		AckMsgId Ack = 6;
+		ServerCommand  serverCommand = 7;
 	}
 }
 
@@ -36,7 +38,7 @@ message AckMsgId
 message ClientReport
 {
 	int32 ClientType = 1; // 0 == Invalid, 1 == Spotter, Gunner == 2
-	string SpotterPassword = 2;
+	string SessionPassword = 2;
 	int32 LastCoordsIdReceived = 3;
 	int32 LastCoordsIdSent = 4; // For use by spotter if they are client.
 }
@@ -47,4 +49,10 @@ message ServerReport
 	repeated string ActiveCallsigns = 2;
 	int32 LastCoordsIdReceived = 3;
 	int32 LastCoordsIdSent = 4;
+}
+
+message ServerCommand
+{
+	int32 CommandType = 1; // 0 == Not used, 1 == Refused Password
+	string CommandMsg = 2; // Message to send to client
 }
