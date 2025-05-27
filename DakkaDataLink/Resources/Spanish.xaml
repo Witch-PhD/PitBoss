@@ -61,6 +61,8 @@
     <system:String x:Key="button_copy">Copiar dirección IP</system:String>
     <system:String x:Key="textblock_my_callsign">My Callsign:</system:String>
     <system:String x:Key="datagrid_column_header_callsign">Callsign</system:String>
+    <system:String x:Key="textblock_session_id">Session ID:</system:String>
+    <system:String x:Key="textblock_session_password">Session Password:</system:String>
 
     <!--Options-->
     <!--Overlay-->

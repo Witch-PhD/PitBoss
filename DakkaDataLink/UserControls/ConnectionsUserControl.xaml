@@ -22,6 +22,14 @@
                     <TextBlock Text="{DynamicResource textblock_server_ip}" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="5,5,5,5"/>
                     <TextBox x:Name="serverIp_TextBox" Text="" Height="25" Width="125" Margin="5,5,5,5" ToolTip="{DynamicResource textbox_server_ip_tooltip}"/>
                 </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{DynamicResource textblock_session_id}" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="5,5,5,5"/>
+                    <TextBox x:Name="sessionId_TextBox" Text="" Height="25" Width="125" Margin="5,5,5,5"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{DynamicResource textblock_session_password}" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="5,5,5,5"/>
+                    <TextBox x:Name="sessionPassword_TextBox" Text="" Height="25" Width="125" Margin="5,5,5,5"/>
+                </StackPanel>
 
                 <Button x:Name="StartStopUdpClient_Button" Content="{DynamicResource button_connect}" Click="StartStopUdpClient_Button_Click" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="5,0,5,5"/>
                 <Button x:Name="StartStopUdpServer_Button" Content="{DynamicResource button_start}" HorizontalAlignment="Left" VerticalAlignment="Top" Click="StartStopUdpServer_Button_Click" Margin="5,5,5,5"/>

@@ -61,7 +61,9 @@
     <system:String x:Key="button_copy">Copia l'indirizzo IP</system:String>
     <system:String x:Key="textblock_my_callsign">Il mio nome in codice:</system:String>
     <system:String x:Key="datagrid_column_header_callsign">Nome in codice</system:String>
-    
+    <system:String x:Key="textblock_session_id">Session ID:</system:String>
+    <system:String x:Key="textblock_session_password">Session Password:</system:String>
+
     <!--Options-->
     <!--Overlay-->
     <system:String x:Key="groupbox_overlay_header">Impostazioni della Sovraimpressione</system:String>

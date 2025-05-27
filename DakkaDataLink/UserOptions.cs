@@ -57,6 +57,40 @@ namespace DakkaDataLink
             }
         }
 
+        protected string m_LastSessionId = "";
+        public string LastSessionId
+        {
+            get
+            {
+                return m_LastSessionId;
+            }
+            set
+            {
+                if (m_LastSessionId != value)
+                {
+                    m_LastSessionId = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        protected string m_LastSessionPassword = "";
+        public string LastSessionPassword
+        {
+            get
+            {
+                return m_LastSessionPassword;
+            }
+            set
+            {
+                if (m_LastSessionPassword != value)
+                {
+                    m_LastSessionPassword = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         #region OverlaySettings
 
         protected double m_OverlayTransparency = 0.5;
