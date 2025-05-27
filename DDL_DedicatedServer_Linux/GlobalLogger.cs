@@ -1,6 +1,6 @@
 ﻿using System.IO;
 
-namespace DakkaDataLink
+namespace DakkaDataLink_Dedicated
 {
     internal class GlobalLogger
     {

@@ -2,7 +2,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace DakkaDataLink
+namespace DakkaDataLink_Dedicated
 {
     public class FiringHistoryEntry : INotifyPropertyChanged
     {

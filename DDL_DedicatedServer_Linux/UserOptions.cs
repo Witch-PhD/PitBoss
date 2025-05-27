@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using System.Xml.Serialization;
 
-namespace DakkaDataLink
+namespace DakkaDataLink_Dedicated
 {
     public class UserOptions : INotifyPropertyChanged
     {

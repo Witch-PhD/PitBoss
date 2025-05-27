@@ -1,4 +1,4 @@
-﻿namespace DakkaDataLink
+﻿namespace DakkaDataLink_Dedicated
 {
     public class ArtilleryProfiles
     {

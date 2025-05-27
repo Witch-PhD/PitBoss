@@ -11,7 +11,7 @@ using Grpc.Core;
 using System.Data;
 using System.Diagnostics;
 
-namespace DakkaDataLink
+namespace DakkaDataLink_Dedicated
 {
     class UdpHandler
     {

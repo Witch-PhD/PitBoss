@@ -9,7 +9,7 @@ using Comms_Core;
 using Google.Protobuf;
 using Grpc.Core;
 
-namespace DakkaDataLink
+namespace DakkaDataLink_Dedicated
 {
     internal class UdpClientHandler
     {
@@ -121,7 +121,7 @@ namespace DakkaDataLink
             msg.Callsign = dataManager.MyCallsign;
             msg.ClientReport = new ClientReport();
             msg.ClientReport.ClientType = (int)dataManager.OperatingMode;
-            msg.ClientReport.SpotterPassword = "";
+            msg.ClientReport.SessionPassword = "";
             msg.ClientReport.LastCoordsIdReceived = latestCoordsMsgIdRecvd;
             msg.ClientReport.LastCoordsIdSent = latestCoordsMsgIdSent;
 

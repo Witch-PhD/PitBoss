@@ -9,7 +9,7 @@ using Comms_Core;
 using Google.Protobuf;
 using Grpc.Core;
 
-namespace DakkaDataLink
+namespace DakkaDataLink_Dedicated
 {
     internal class UdpServerHandler
     {

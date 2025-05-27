@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 
-namespace DakkaDataLink
+namespace DakkaDataLink_Dedicated
 {
     public class DataManager : INotifyPropertyChanged
     {
